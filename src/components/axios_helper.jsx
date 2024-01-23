@@ -12,6 +12,14 @@ export const setToken = (token) => {
   sessionStorage.setItem("token", token);
 };
 
+export const getGame = () => {
+  return sessionStorage.getItem("game");
+};
+
+export const setGame = (game) => {
+  sessionStorage.setItem("game", game);
+};
+
 export const refreshToken = async () => {
   try {
     const response = await request("POST", "/refresh-token", {});
