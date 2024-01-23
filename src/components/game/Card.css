@@ -1,0 +1,26 @@
+.card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-image {
+    width: auto;
+    height: 150px;
+    transition: all 0.3s ease-in-out;
+}
+
+.card-image:hover {
+    cursor: pointer;
+    width: auto;
+    height: 300px;
+    transition: all 0.3s ease-in-out;
+
+}
+
+.card-image.selected {
+    width: auto;
+    filter: drop-shadow(0 0 0.75rem #00ff00);
+    transition: all 0.3s ease-in-out;
+}
