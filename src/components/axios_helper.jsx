@@ -1,7 +1,7 @@
 import axios from "axios";
 import { toast } from "react-toastify";
 
-axios.defaults.baseURL = "https://52.47.97.125:8080";
+axios.defaults.baseURL = "https://52.47.97.125:443";
 axios.defaults.headers.post["Content-Type"] = "application/json";
 
 export const getToken = () => {
