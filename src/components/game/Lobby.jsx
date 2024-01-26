@@ -30,6 +30,7 @@ export default class Lobby extends React.Component {
                 if (error.code === 'ERR_NETWORK') {
                     toast.error('Could not connect to server');
                 } else if (error.response.data !== getToken) {
+                    this.handleLeave();
                     window.location.href = '/login';
                     sessionStorage.setItem('loginExpired', 'true');
                 } else
@@ -81,6 +82,27 @@ export default class Lobby extends React.Component {
         }
     }
 
+    handleLeave = async () => {
+        try{
+            const response = await request('POST', `/game/${getGame()}/back`, {});
+            if (response.status === 200) {
+                this.props.onLoadingChange(false);
+                sessionStorage.removeItem('ready');
+                sessionStorage.removeItem('host');
+                sessionStorage.removeItem('numPlayers');
+                sessionStorage.removeItem('game');
+                localStorage.removeItem('game');
+                window.location.href = '/home';
+            }
+        }catch(error){
+            if (error.code === 'ERR_NETWORK') {
+                toast.error('Could not connect to server');
+            } else {
+                toast.error('Something went wrong');
+            }
+        }
+    }
+
     render() {
         if (this.state.loading) {
             return <Loader />;
@@ -108,7 +130,7 @@ export default class Lobby extends React.Component {
                             </label>
                         </div>
                         {sessionStorage.getItem('host') && sessionStorage.getItem('ready') && (<button onClick={this.handleStart}>Start</button>)}
-                        {!sessionStorage.getItem('host') && !sessionStorage.getItem('ready') && (<label>Waiting for host to start game...</label>)}
+                        {!sessionStorage.getItem('ready') && (<button onClick={this.handleLeave}>Leave</button>)}
                         {!sessionStorage.getItem('host') && sessionStorage.getItem('ready') && (<button onClick={this.handleStart}>Go to game</button>)}
                     </div>
                 </React.Fragment>
