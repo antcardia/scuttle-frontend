@@ -16,6 +16,11 @@ export default class Home extends React.Component {
       }
       
     async componentDidMount() {
+        const gameDeleted = sessionStorage.getItem('gameDeleted');
+        if(gameDeleted){
+            toast.error('Player left the game');
+            sessionStorage.removeItem('gameDeleted');
+        }
         setTimeout(async () => {
             try {
                 const response = await request('GET', '/home', {});

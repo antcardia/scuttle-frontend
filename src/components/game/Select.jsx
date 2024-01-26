@@ -105,7 +105,7 @@ export default class Select extends React.Component {
                                 <label className='label'>Gamemode:</label>
                                 <select className='selectGamemode' name='mode' onChange={this.handleGamemodeChange} value={this.state.game.mode}>
                                     {this.state.gamemodes.map((gamemode) => (
-                                        <option key={gamemode} value={gamemode}>
+                                        <option key={gamemode} value={gamemode} disabled={gamemode !== "NORMAL"}>
                                             {gamemode}
                                         </option>
                                     ))}
@@ -116,8 +116,8 @@ export default class Select extends React.Component {
                                 <select className='selectPlayers' name='numPlayers' onChange={this.handlePlayersChange} value={this.state.game.numPlayers} >
                                     <option value='2'>2 players</option>
                                     <option value='3'>3 players</option>
-                                    <option value='4'>4 players</option>
-                                    <option value='5'>5 players</option>
+                                    <option value='4' disabled>4 players</option>
+                                    <option value='5'disabled>5 players</option>
                                 </select>
                             </div>
                             <div className='buttons'>

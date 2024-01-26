@@ -33,6 +33,7 @@ export default class Game extends React.Component {
             showPopupCardsSkeletonKey: false,
             showPopupCardsPirateCode: false,
             showPopupCardsLookout: false,
+            showPopupEndGame: false,
             card: '',
             card2: '',
             cards: [],
@@ -55,7 +56,9 @@ export default class Game extends React.Component {
     }
 
     async componentDidMount() {
-        this.pollingInterval = setInterval(() => {
+        this.pollingInterval = setInterval(async () => {
+            this.checkEndGame();
+            this.checkPlayers();
             this.checkPopupLifeboat();
             this.checkPopupCannon();
             this.checkStowaway();
@@ -65,6 +68,28 @@ export default class Game extends React.Component {
             this.checkPirateCode();
             this.checkFirstMate();
             this.checkPirateKing();
+            try {
+                const response = await request('GET', `/game/${getGame()}`, {});
+                if (response.status === 200) {
+                    localStorage.setItem('game', JSON.stringify(response.data));
+                }
+            } catch (error) {
+                if (error.code === 'ERR_NETWORK') {
+                    toast.error('Could not connect to server');
+                } else
+                    toast.error('Something went wrong');
+            }
+            try {
+                const response = await request('GET', '/game/hand', {});
+                if (response.status === 200) {
+                    localStorage.setItem('player', JSON.stringify(response.data));
+                }
+            } catch (error) {
+                if (error.code === 'ERR_NETWORK') {
+                    toast.error('Could not connect to server');
+                } else
+                    toast.error('Something went wrong');
+            }
         }, 2000);
         try {
             const response = await request('GET', '/home', {});
@@ -75,8 +100,11 @@ export default class Game extends React.Component {
             if (error.code === 'ERR_NETWORK') {
                 toast.error('Could not connect to server');
             } else if (error.response.data !== getToken) {
-                window.location.href = '/login';
-                sessionStorage.setItem('loginExpired', 'true');
+                const response2 = await request('POST', `/game/${getGame()}/finish-game`);
+                if (response2.status === 200) {
+                    window.location.href = '/login';
+                    sessionStorage.setItem('loginExpired', 'true');
+                }
             } else
                 toast.error('Something went wrong');
         }
@@ -93,33 +121,64 @@ export default class Game extends React.Component {
             } else
                 toast.error('Something went wrong');
         }
-        try {
-            const response = await request('GET', `/game/${getGame()}`, {});
-            if (response.status === 200) {
-                localStorage.setItem('game', JSON.stringify(response.data));
-            }
-        } catch (error) {
-            if (error.code === 'ERR_NETWORK') {
-                toast.error('Could not connect to server');
-            } else
-                toast.error('Something went wrong');
-        }
-        try {
-            const response = await request('GET', '/game/hand', {});
-            if (response.status === 200) {
-                localStorage.setItem('player', JSON.stringify(response.data));
-            }
-        } catch (error) {
-            if (error.code === 'ERR_NETWORK') {
-                toast.error('Could not connect to server');
-            } else
-                toast.error('Something went wrong');
-        }
         document.addEventListener('click', this.handleDeckOnClick);
     }
 
     componentWillUnmount() {
         clearInterval(this.pollingInterval);
+    }
+
+    handlePopupEndGame = async () => {
+        this.setState({ showPopupEndGame: false });
+        await request('POST', `/game/${getGame()}/leave-game`);
+        sessionStorage.removeItem('ready');
+        sessionStorage.removeItem('host');
+        sessionStorage.removeItem('numPlayers');
+        sessionStorage.removeItem('game');
+        sessionStorage.removeItem('gameStarted');
+        localStorage.clear();
+        window.location.href = '/home';
+    }
+
+    endGame = async () => {
+        try {
+            const response = await request('POST', `/game/${getGame()}/end-game`, {});
+            if (response.status === 200) {
+                this.setState({ player: response.data, showPopupEndGame: true });
+            }
+        } catch (error) {
+            console.error('Error: ', error);
+        }
+    };
+
+    checkEndGame = async () => {
+        try {
+            const response = await request('GET', `/game/${getGame()}/end-game`, {});
+            if (response.status === 200 && response.data === true) {
+                this.endGame();
+            }
+        } catch (error) {
+            console.error('Error: ', error);
+        }
+    };
+
+    checkPlayers = async () => {
+        try {
+            await request('GET', `/game/${getGame()}/players`, {});                
+        } catch (error) {
+            if (error.response.status === 400) {
+                sessionStorage.removeItem('ready');
+                sessionStorage.removeItem('host');
+                sessionStorage.removeItem('numPlayers');
+                sessionStorage.removeItem('game');
+                sessionStorage.removeItem('gameStarted');
+                localStorage.clear();
+                sessionStorage.setItem('gameDeleted', 'true')
+                window.location.href = '/home';    
+            }else if (error.code === 'ERR_NETWORK') {
+                toast.error('Could not connect to server');
+            }
+        }
     }
 
     jollyRogerAction = async () => {
@@ -1151,6 +1210,26 @@ export default class Game extends React.Component {
                             ))}
                         </div>
                         <button className='action-button' onClick={this.handlePopupCardsLookout}>OK</button>
+                    </div>
+                </div>)}
+
+                {this.state.showPopupEndGame && (<div className='popup' id='popup-end-game'>
+                    <div className='popup-content-centered'>
+                        {this.state.player === this.state.user.username && (
+                            <React.Fragment>
+                                <label className='popup-label'>CONGRATULATIONS {this.state.user.username}!</label>
+                                <label className='popup-label'>YOU WON THE GAME!</label>    
+                            </React.Fragment>
+                            )}
+                        {this.state.player !== this.state.user.username && (
+                            <React.Fragment>
+                                <label className='popup-label'>Sorry, {this.state.user.username}</label>
+                                <label className='popup-label'>You lost the game</label>    
+                            </React.Fragment>
+                            )}
+                        <div className='popup-buttons' style={{ display: "flex", flexDirection: "row", gap: "150px" }}>
+                            <button className='action-button' onClick={this.handlePopupEndGame}>OK</button>
+                        </div>
                     </div>
                 </div>)}
 
