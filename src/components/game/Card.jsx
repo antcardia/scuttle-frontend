@@ -26,7 +26,7 @@ export default class Card extends React.Component {
   render() {
     const { cardName } = this.props;
     const { cardSelected } = this.state;
-    const getImagePath = (name) => `../../../src/assets/images/${name}.png`;
+    const getImagePath = (name) => `../../assets/images/${name}.png`;
 
     return (
       <div className="card">
