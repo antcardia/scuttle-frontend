@@ -90,7 +90,7 @@ export default class Game extends React.Component {
                 } else
                     toast.error('Something went wrong');
             }
-        }, 2000);
+        }, 6000);
         try {
             const response = await request('GET', '/home', {});
             if (response.status === 200 && response.data === getToken) {
