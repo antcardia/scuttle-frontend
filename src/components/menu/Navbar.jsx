@@ -63,7 +63,7 @@ export default class Navbar extends React.Component {
                     toast.error('Could not connect to server');
                 }
             }
-        }, 6000);
+        }, 2000);
     }
 
     getActualGame = () => {

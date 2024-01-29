@@ -56,7 +56,7 @@ export default class Game extends React.Component {
     }
 
     async componentDidMount() {
-        this.pollingInterval = setInterval(async () => {
+        this.pollingInterval2 = setInterval(async () => {
             this.checkEndGame();
             this.checkPlayers();
             this.checkPopupLifeboat();
@@ -68,6 +68,8 @@ export default class Game extends React.Component {
             this.checkPirateCode();
             this.checkFirstMate();
             this.checkPirateKing();
+        }, 10000);
+        this.pollingInterval = setInterval(async () => {
             try {
                 const response = await request('GET', `/game/${getGame()}`, {});
                 if (response.status === 200) {
@@ -90,7 +92,7 @@ export default class Game extends React.Component {
                 } else
                     toast.error('Something went wrong');
             }
-        }, 6000);
+        }, 2000);
         try {
             const response = await request('GET', '/home', {});
             if (response.status === 200 && response.data === getToken) {
@@ -125,7 +127,7 @@ export default class Game extends React.Component {
     }
 
     componentWillUnmount() {
-        clearInterval(this.pollingInterval);
+        clearInterval(this.pollingInterval, this.pollingInterval2);
     }
 
     handlePopupEndGame = async () => {
