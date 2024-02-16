@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import './Home.css'
 import Loader from './Loader';
 import PropTypes from 'prop-types';
-import Background from '../../assets/images/MenuBackground.jpg';
+import Background from '/assets/images/MenuBackground.jpg';
 
 export default class Home extends React.Component {
     constructor(props) {

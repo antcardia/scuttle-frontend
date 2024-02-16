@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { request, getToken, refreshToken, setGame, getGame } from '../axios_helper';
 import './Select.css';
 import PropTypes from 'prop-types';
-import Background from '../../assets/images/MenuBackground.jpg';
+import Background from '/assets/images/MenuBackground.jpg';
 
 
 export default class Select extends React.Component {

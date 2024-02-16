@@ -2,9 +2,9 @@ import React from "react";
 import { toast } from "react-toastify";
 import { getGame, request } from "../axios_helper";
 import DropdownProfile from './DropdownProfile';
-import picture from '../../assets/images/user_picture.png';
+import picture from '/assets/images/user_picture.png';
 import './Navbar.css';
-import Logo from '../../assets/images/ScuttleBackground.jpg';
+import Logo from '/assets/images/ScuttleBackground.jpg';
 import PropTypes from 'prop-types';
 import { navigate } from "../Navigation";
 
@@ -40,30 +40,6 @@ export default class Navbar extends React.Component {
                 toast.error('Could not connect to server');
             }
         }
-        this.pollingInterval = setInterval(async () => {
-            try {
-                const response = await request('GET', '/user', {});
-                if (response.status === 200) {
-                    this.setState({ user: response.data });
-                }
-            } catch (error) {
-                if (error.code === 'ERR_NETWORK') {
-                    toast.error('Could not connect to server');
-                } else
-                    toast.error('Something went wrong');
-            }
-            document.addEventListener('click', this.handleClickOutside);
-            try {
-                const response = await request('GET', `/game/${getGame()}`, {});
-                if (response.status === 200) {
-                    localStorage.setItem('game', JSON.stringify(response.data));
-                }
-            } catch (error) {
-                if (error.code === 'ERR_NETWORK') {
-                    toast.error('Could not connect to server');
-                }
-            }
-        }, 2000);
     }
 
     getActualGame = () => {
@@ -72,7 +48,6 @@ export default class Navbar extends React.Component {
 
     componentWillUnmount() {
         document.removeEventListener('click', this.handleClickOutside);
-        clearInterval(this.pollingInterval);
     }
 
     handleClickOutside = (event) => {
