@@ -4,7 +4,7 @@ import { request, getToken, refreshToken, getGame } from '../axios_helper';
 import PropTypes from 'prop-types';
 import Loader from '../menu/Loader';
 import './Lobby.css';
-import Background from '../../assets/images/MenuBackground.jpg';
+import Background from '/assets/images/MenuBackground.jpg';
 
 export default class Lobby extends React.Component {
     constructor(props) {

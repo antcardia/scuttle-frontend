@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { request, refreshToken, getToken } from '../axios_helper';
 import PropTypes from 'prop-types';
 import './Join.css';
-import Background from '../../assets/images/MenuBackground.jpg';
+import Background from '/assets/images/MenuBackground.jpg';
 
 export default class Join extends React.Component {
     constructor(props) {

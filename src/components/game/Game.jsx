@@ -4,8 +4,8 @@ import { request, getToken, getGame, refreshToken } from '../axios_helper';
 import PropTypes from 'prop-types';
 import './Game.css';
 import Card from './Card';
-import Background from '../../assets/images/GameBackground.jpg';
-import Deck from '../../assets/images/ScuttleDeck.png';
+import Background from '/assets/images/GameBackground.jpg';
+import Deck from '/assets/images/ScuttleDeck.png';
 
 export default class Game extends React.Component {
     constructor(props) {
@@ -55,44 +55,48 @@ export default class Game extends React.Component {
         return JSON.parse(localStorage.getItem('game'));
     }
 
+    getHand = async () => {
+        try {
+            const response = await request('GET', '/game/hand', {});
+            if (response.status === 200) {
+                localStorage.setItem('player', JSON.stringify(response.data));
+            }
+        } catch (error) {
+            if (error.code === 'ERR_NETWORK') {
+                toast.error('Could not connect to server');
+            } else
+                toast.error('Something went wrong');
+        }
+    }
+
+    getGameData = async () => {
+        try {
+            const response = await request('GET', `/game/${getGame()}`, {});
+            if (response.status === 200) {
+                localStorage.setItem('game', JSON.stringify(response.data));
+            }
+        } catch (error) {
+            if (error.code === 'ERR_NETWORK') {
+                toast.error('Could not connect to server');
+            } else
+                toast.error('Something went wrong');
+        }
+    }
+
     async componentDidMount() {
-        this.pollingInterval2 = setInterval(async () => {
-            this.checkEndGame();
-            this.checkPlayers();
+        this.pollingInterval = setInterval(async () =>{
+            this.getGameData();
+            this.getHand();
             this.checkPopupLifeboat();
             this.checkPopupCannon();
-            this.checkStowaway();
-            this.checkShipsWheel();
-            this.checkJollyRoger();
-            this.checkSpyglass();
-            this.checkPirateCode();
-            this.checkFirstMate();
-            this.checkPirateKing();
-        }, 10000);
-        this.pollingInterval = setInterval(async () => {
-            try {
-                const response = await request('GET', `/game/${getGame()}`, {});
-                if (response.status === 200) {
-                    localStorage.setItem('game', JSON.stringify(response.data));
-                }
-            } catch (error) {
-                if (error.code === 'ERR_NETWORK') {
-                    toast.error('Could not connect to server');
-                } else
-                    toast.error('Something went wrong');
-            }
-            try {
-                const response = await request('GET', '/game/hand', {});
-                if (response.status === 200) {
-                    localStorage.setItem('player', JSON.stringify(response.data));
-                }
-            } catch (error) {
-                if (error.code === 'ERR_NETWORK') {
-                    toast.error('Could not connect to server');
-                } else
-                    toast.error('Something went wrong');
-            }
-        }, 2000);
+        }, 5000);
+        this.checkEndGame();
+        this.checkPlayers();
+        this.getGameData();
+        this.getHand();
+        this.checkPirateCode();
+        this.checkFirstMate();
+        this.checkPirateKing();
         try {
             const response = await request('GET', '/home', {});
             if (response.status === 200 && response.data === getToken) {
@@ -116,6 +120,7 @@ export default class Game extends React.Component {
             const response = await request('GET', '/user', {});
             if (response.status === 200) {
                 this.setState({ user: response.data });
+                this.checkJollyRoger();
             }
         } catch (error) {
             if (error.code === 'ERR_NETWORK') {
@@ -124,10 +129,6 @@ export default class Game extends React.Component {
                 toast.error('Something went wrong');
         }
         document.addEventListener('click', this.handleDeckOnClick);
-    }
-
-    componentWillUnmount() {
-        clearInterval(this.pollingInterval, this.pollingInterval2);
     }
 
     handlePopupEndGame = async () => {
@@ -188,6 +189,7 @@ export default class Game extends React.Component {
             await request('POST', `/game/${getGame()}/jolly-roger-action`, {
                 player: this.state.user.username,
             });
+            this.checkShipsWheel();
         } catch (error) {
             console.error('Error: ', error);
         }
@@ -196,7 +198,7 @@ export default class Game extends React.Component {
     checkJollyRoger = async () => {
         try {
             const response = await request('GET', `/game/${getGame()}/jolly-roger`, {});
-            if (response.status === 200 && response.data === true) {
+            if (response.status === 200 && response.data !== "" && response.data === this.state.user.username) {
                 this.jollyRogerAction();
             }
         } catch (error) {
@@ -261,7 +263,7 @@ export default class Game extends React.Component {
         try {
             this.getActualGame().players.map((player) => (
                 player.playedCards.map((card) => {
-                    if (card.name === 'ShipsWheel' && card.playedAsPermanent === true) {
+                    if (card.name === 'ShipsWheel' && card.playedAsPermanent === true && player.user.name !== this.state.user.username) {
                         this.setState({ hasShipsWheel: true, player: player.user.name });
                     }
                 })
@@ -336,10 +338,16 @@ export default class Game extends React.Component {
 
     handleDeckOnClick = async () => {
         if (this.getActualGame().turn === this.state.user.username && this.state.deckHover) {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/draw-card-turn`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkShipsWheel();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         }
     }
@@ -373,22 +381,35 @@ export default class Game extends React.Component {
     }
 
     handlePopupCards = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCards: false });
         const response = await request('POST', `/game/${getGame()}/chosen-card-henry-morgan`, {
             card: this.state.card,
         });
         if (response.status === 200) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            this.checkShipsWheel();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         }
     }
 
     handlePopupPlayers = async (playerName) => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupPlayersLongJohnSilver: false });
         const response = await request('POST', `/game/${getGame()}/chosen-player-long-john-silver`, {
             player: playerName,
         });
         if (response.status === 200) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         }
     }
 
@@ -397,27 +418,40 @@ export default class Game extends React.Component {
     }
 
     handlePopupCardsTreasureMadameChing = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCardsTreasureMadameChing: false });
         const response =  await request('POST', `/game/${getGame()}/chosen-cards-madame-ching`, {
             card: this.state.card,
             card2: this.state.card2,
         });
         if (response.status === 200) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         }
     }
 
     handlePopupPlayersStowaway = async (playerName) => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupPlayersStowaway: false });
         const response = await request('POST', `/game/${getGame()}/chosen-player-stowaway`, {
             player: playerName,
         });
         if (response.status === 200) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         }
     }
 
     handlePopupNumberMutiny = async (number) => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupNumberMutiny: false });
         this.getActualGame().players.map((player) => (
             player.playedCards.map((card) => {
@@ -430,32 +464,54 @@ export default class Game extends React.Component {
             number: number,
         });
         if (response.status === 200 && this.state.hasLifeboat === false) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         } else if (response.status === 200 && this.state.hasLifeboat === true) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
             this.triggerPopupLifeboat(response.data);
             this.setState({ cards: response.data, showPopupLifeboat: true });
-
         }
     }
 
     handlePopupLifeboat = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupLifeboat: false });
         this.triggerPopupLifeboat();
         await request('POST', `/game/${getGame()}/saved-card-lifeboat`, {
             card: this.state.card,
             player: this.state.playerLifeboat,
         });
-        window.location.reload();
+        this.getHand();
+        this.getGameData();
+        setTimeout(() => {
+            document.body.style.cursor = 'default';
+            window.location.reload();
+        }, 1500);
     }
 
     handlePopupCancelLifeboat = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupLifeboat: false });
         this.triggerPopupLifeboat();
-        window.location.reload();
+        this.getHand();
+        this.getGameData();
+        setTimeout(() => {
+            document.body.style.cursor = 'default';
+            window.location.reload();
+        }, 1500);
     }
 
     handlePopupCardsCutlass = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCardsCutlass: false });
         this.getActualGame().players.map((player) => (
             player.playedCards.map((card) => {
@@ -468,21 +524,41 @@ export default class Game extends React.Component {
             card: this.state.card,
         });
         if(response.status === 200 && this.state.hasLifeboat === false) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            this.checkShipsWheel();
+            this.checkSpyglass();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         } else if(response.status === 200 && this.state.hasLifeboat === true) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            this.checkShipsWheel();
+            this.checkSpyglass();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
             this.triggerPopupLifeboat(response.data);
             this.setState({ cards: response.data, showPopupLifeboat: true });
         }
     }
 
     handlePopupCardsMonkey = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCardsMonkey: false });
         const response = await request('POST', `/game/${getGame()}/chosen-card-monkey`, {
             card: this.state.card,
         });
         if(response.status === 200) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         }
     }
 
@@ -503,6 +579,7 @@ export default class Game extends React.Component {
     }
 
     handlePopupSecondCardCannon = async () => {
+        document.body.style.cursor = 'wait';
         this.getActualGame().players.map((player) => (
             player.playedCards.map((card) => {
                 if (card.name === 'Lifeboat' && card.playedAsPermanent === true) {
@@ -515,37 +592,68 @@ export default class Game extends React.Component {
             card2: this.state.card2,
         });
         if (response.status === 200 && this.state.hasLifeboat === false) {
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
             this.setState({ isTreasure: false, hasAbility: false });
         } else if (response.status === 200 && this.state.hasLifeboat === true) {
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
             this.triggerPopupLifeboat(response.data);
             this.setState({ cards: response.data, showPopupLifeboat: true, isTreasure: false, hasAbility: false });
-            window.location.reload();
         }
     }
 
     handlePopupCardsSkeletonKey = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCardsSkeletonKey: false });
         await request('POST', `/game/${getGame()}/chosen-card-skeleton-key`, {
             card: this.state.card,
         });
+        this.getHand();
+        this.getGameData();
+        this.checkShipsWheel();
+        setTimeout(() => {
+            document.body.style.cursor = 'default';
+            window.location.reload();
+        }, 1500);
     }
 
     handlePopupCardsPirateCode = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCardsPirateCode: false });
         await request('POST', `/game/${getGame()}/chosen-card-pirate-code`, {
             card: this.state.card,
         });
+        this.getHand();
+        this.getGameData();
+        setTimeout(() => {
+            document.body.style.cursor = 'default';
+            window.location.reload();
+        }, 1500);
     }
 
     handlePopupCardsLookout = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({ showPopupCardsLookout: false });
         try {
             const response = await request('POST', `/game/${getGame()}/chosen-card-lookout`, {
                 card: this.state.card,
             });
             if (response.status === 200) {
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1500);
             }
         } catch (error) {
             if (error.response.status === 404) {
@@ -556,11 +664,16 @@ export default class Game extends React.Component {
     }
 
     handleTreasure = async () => {
+        document.body.style.cursor = 'wait';
         this.setState({showPopupCardsSkeletonKey: false })
         const response = await request('POST', `/game/${getGame()}/play-treasure-card`, {});
         if (response.status === 200) {
-            window.location.reload();
-            window.location.reload();
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1500);
         }
     }
 
@@ -577,10 +690,16 @@ export default class Game extends React.Component {
 
     handleCardActions = {
         AnneBonny: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('GET', `/game/${getGame()}/anne-bonny`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkShipsWheel();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         HenryMorgan: async () => {
@@ -615,6 +734,7 @@ export default class Game extends React.Component {
             }
         },
         Maelstrom: async () => {
+            document.body.style.cursor = 'wait';
             this.getActualGame().players.map((player) => (
                 player.playedCards.map((card) => {
                     if (card.name === 'Lifeboat' && card.playedAsPermanent === true) {
@@ -624,18 +744,28 @@ export default class Game extends React.Component {
             ));
             const response = await request('POST', `/game/${getGame()}/maelstrom`, {});
             if (response.status === 200 && this.state.hasLifeboat === false) {
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             } else if (response.status === 200 && this.state.hasLifeboat === true) {
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
                 this.triggerPopupLifeboat(response.data);
                 this.setState({ cards: response.data, showPopupLifeboat: true });
-
             }
         },
         Mutiny: async () => {
             this.setState({ showPopupNumberMutiny: true });
         },
         ShiverMeTimbers: async () => {
+            document.body.style.cursor = 'wait';
             this.getActualGame().players.map((player) => (
                 player.playedCards.map((card) => {
                     if (card.name === 'Lifeboat' && card.playedAsPermanent === true) {
@@ -645,21 +775,50 @@ export default class Game extends React.Component {
             ));
             const response = await request('POST', `/game/${getGame()}/shiver-me-timbers`, {});
             if (response.status === 200 && this.state.hasLifeboat === false) {
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             } else if (response.status === 200 && this.state.hasLifeboat === true) {
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
                 this.triggerPopupLifeboat(response.data);
                 this.setState({ cards: response.data, showPopupLifeboat: true });
             }
         },
         Lifeboat: async () => {
-            window.location.reload();
+            document.body.style.cursor = 'wait';
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1000);
         },
         JollyRoger: async () => {
-            window.location.reload();
+            document.body.style.cursor = 'wait';
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1000);
         },
         ShipsWheel: async () => {
-            window.location.reload();
+            document.body.style.cursor = 'wait';
+            this.getHand();
+            this.getGameData();
+            setTimeout(() => {
+                document.body.style.cursor = 'default';
+                window.location.reload();
+            }, 1000);
         },
         CutlassEyepatch: async () => {
             const response = await request('GET', `/game/${getGame()}/cutlass`, {});
@@ -716,27 +875,43 @@ export default class Game extends React.Component {
             }
         },
         TreasureMapEyepatch: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('GET', `/game/${getGame()}/treasure-map`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         TreasureMapSkull: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('GET', `/game/${getGame()}/treasure-map`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         TreasureMapHook: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('GET', `/game/${getGame()}/treasure-map`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         KrakenEyepatch: async () => {
+            document.body.style.cursor = 'wait';
             this.getActualGame().players.map((player) => (
                 player.playedCards.map((card) => {
                     if (card.name === 'Lifeboat' && card.playedAsPermanent === true) {
@@ -746,16 +921,27 @@ export default class Game extends React.Component {
             ));
             const response = await request('POST', `/game/${getGame()}/kraken`, {});
             if (response.status === 200 && this.state.hasLifeboat === false) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }else if(response.status === 200 && this.state.hasLifeboat === true){
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
                 this.triggerPopupLifeboat(response.data);
                 this.setState({ cards: response.data, showPopupLifeboat: true });
             }
         },
         KrakenSkull: async () => {
+            document.body.style.cursor = 'wait';
             this.getActualGame().players.map((player) => (
                 player.playedCards.map((card) => {
                     if (card.name === 'Lifeboat' && card.playedAsPermanent === true) {
@@ -765,16 +951,27 @@ export default class Game extends React.Component {
             ));
             const response = await request('POST', `/game/${getGame()}/kraken`, {});
             if (response.status === 200 && this.state.hasLifeboat === false) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }else if(response.status === 200 && this.state.hasLifeboat === true){
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
                 this.triggerPopupLifeboat(response.data);
                 this.setState({ cards: response.data, showPopupLifeboat: true });
             }
         },
         KrakenHook: async () => {
+            document.body.style.cursor = 'wait';
             this.getActualGame().players.map((player) => (
                 player.playedCards.map((card) => {
                     if (card.name === 'Lifeboat' && card.playedAsPermanent === true) {
@@ -784,11 +981,21 @@ export default class Game extends React.Component {
             ));
             const response = await request('POST', `/game/${getGame()}/kraken`, {});
             if (response.status === 200 && this.state.hasLifeboat === false) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }else if(response.status === 200 && this.state.hasLifeboat === true){
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                this.checkSpyglass();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
                 this.triggerPopupLifeboat(response.data);
                 this.setState({ cards: response.data, showPopupLifeboat: true });
             }
@@ -812,24 +1019,39 @@ export default class Game extends React.Component {
             }
         },
         SpyglassEyepatch: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/spyglass`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         SpyglassSkull: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/spyglass`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         SpyglassHook: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/spyglass`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         PirateCodeEyepatch: async () => {
@@ -869,45 +1091,75 @@ export default class Game extends React.Component {
             }
         },
         FirstMateEyepatch: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/first-mate`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         FirstMateSkull: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/first-mate`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         FirstMateHook: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/first-mate`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         PirateKingEyepatch: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/pirate-king`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         PirateKingSkull: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/pirate-king`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
         PirateKingHook: async () => {
+            document.body.style.cursor = 'wait';
             const response = await request('POST', `/game/${getGame()}/pirate-king`, {});
             if (response.status === 200) {
-                window.location.reload();
-                window.location.reload();
+                this.getHand();
+                this.getGameData();
+                setTimeout(() => {
+                    document.body.style.cursor = 'default';
+                    window.location.reload();
+                }, 1000);
             }
         },
     }
@@ -1244,7 +1496,6 @@ export default class Game extends React.Component {
         );
     }
 }
-
 
 Game.propTypes = {
     onLoadingChange: PropTypes.func.isRequired,
